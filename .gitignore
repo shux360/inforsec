@@ -1,0 +1,12 @@
+node_modules/
+npm-debug.log*
+
+# Generated demo PKI and runtime state
+certs/
+logs/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
