@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { normalizeFingerprint } from './certs.js';
 
 export class RevocationList {

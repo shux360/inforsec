@@ -29,6 +29,9 @@ export function runtimeConfig(overrides = {}) {
     serverIdentity: overrides.serverIdentity ?? process.env.RIC_SERVER_IDENTITY,
     maxSkewSeconds: Number(overrides.maxSkewSeconds ?? process.env.RIC_MAX_SKEW_SECONDS ?? 30),
     rateLimitPerMinute: Number(overrides.rateLimitPerMinute ?? process.env.RIC_RATE_LIMIT_PER_MINUTE ?? 30),
+    demoPort: Number(overrides.demoPort ?? process.env.RIC_DEMO_PORT ?? 8080),
+    demoSecret: overrides.demoSecret ?? process.env.RIC_DEMO_SECRET ?? 'demo-secret',
+    demoApiKey: overrides.demoApiKey ?? process.env.RIC_DEMO_API_KEY ?? 'inforsec-demo-key',
     paths: {
       ...defaultPaths,
       ...(overrides.paths ?? {})

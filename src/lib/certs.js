@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
 import { createHash, X509Certificate } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 export function normalizeFingerprint(value) {
   return value.replaceAll(':', '').toUpperCase();
