@@ -1,6 +1,17 @@
 node_modules/
 npm-debug.log*
 
+# Build outputs and local frontend state
+dist/
+ui/dist/
+ui/.vite/
+coverage/
+
+# Local environment files
+.env
+.env.*
+*.local
+
 # Generated demo PKI and runtime state
 certs/
 logs/

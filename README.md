@@ -6,14 +6,14 @@ The implementation is intentionally small and demo-friendly: Node.js built-in `t
 
 ## What This Proves
 
-| Security property | Implementation |
-| --- | --- |
-| Confidentiality | TLS 1.3 plus application-layer AES-256-GCM encryption for STIX CTI payloads |
-| Integrity | AES-GCM authentication tag, HMAC-SHA256 protected header, canonical JSON verification |
-| Authentication | Mutual certificate presentation, trusted CA validation, and RIC-side xApp certificate pinning |
-| Non-repudiation | ECDSA P-256 signatures over payload, sender, timestamp, and nonce |
-| Availability | Per-certificate rate limiting and bounded replay cache |
-| Forward secrecy | TLS 1.3 ECDHE session keys; AES/HMAC keys are derived with TLS exporter labels |
+| Security property | Implementation                                                                                |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| Confidentiality   | TLS 1.3 plus application-layer AES-256-GCM encryption for STIX CTI payloads                   |
+| Integrity         | AES-GCM authentication tag, HMAC-SHA256 protected header, canonical JSON verification         |
+| Authentication    | Mutual certificate presentation, trusted CA validation, and RIC-side xApp certificate pinning |
+| Non-repudiation   | ECDSA P-256 signatures over payload, sender, timestamp, and nonce                             |
+| Availability      | Per-certificate rate limiting and bounded replay cache                                        |
+| Forward secrecy   | TLS 1.3 ECDHE session keys; AES/HMAC keys are derived with TLS exporter labels                |
 
 ## Architecture
 
@@ -56,6 +56,29 @@ Generated demo certificates and logs are written to `certs/` and `logs/`; both a
 - OpenSSL 3.x
 
 No package installation is required because the project uses Node built-ins only.
+
+## Documentation
+
+For a comprehensive educational deep-dive into O-RAN architecture, cryptographic techniques, and how they apply to this project, see [**ORAN_INFOSEC_EXPLAINED.md**](docs/ORAN_INFOSEC_EXPLAINED.md). This guide covers:
+
+- O-RAN architecture context and security challenges
+- Cryptographic building blocks (hashing, HMAC, signatures, encryption, TLS)
+- Complete end-to-end data flow with practical examples
+- Real attack scenarios and how defenses mitigate them
+- Defense-in-depth strategy across all layers
+
+Other documentation:
+
+- [FULL_DEMO_GUIDE.md](docs/FULL_DEMO_GUIDE.md) — Step-by-step walkthrough of the integrated demo
+- [PROJECT_FULL_SECURITY_REPORT.md](docs/PROJECT_FULL_SECURITY_REPORT.md) — Technical security analysis
+- [SECURITY_DESIGN.md](docs/SECURITY_DESIGN.md) — Design patterns and threat model
+
+## Demo Launchers
+
+- [run-demo.bat](run-demo.bat) — Windows launcher that starts the server and UI for local demo use
+- [ui/Dockerfile](ui/Dockerfile) — Docker image for hosting the UI separately as a static site
+
+When hosting the UI in Docker, you can override the backend URL at build time with `VITE_DEMO_SERVER_URL`.
 
 ## Quick Start
 
@@ -102,14 +125,14 @@ node src/xapp-client.js --profile xapp --mode flood --count 35
 
 ## Demo Outcomes
 
-| Demo | Expected outcome |
-| --- | --- |
-| `legit` | RIC accepts STIX payload, verifies signature, logs accepted record |
-| `rogue` | CA-signed but unpinned xApp is rejected |
-| `foreign` | Self-signed xApp is rejected by CA validation |
-| `tamper` | One flipped ciphertext byte causes AES-GCM authentication failure |
-| `replay` | First message accepted, duplicate nonce rejected |
-| `flood` | First messages accepted, excess messages rejected by rate limit |
+| Demo      | Expected outcome                                                   |
+| --------- | ------------------------------------------------------------------ |
+| `legit`   | RIC accepts STIX payload, verifies signature, logs accepted record |
+| `rogue`   | CA-signed but unpinned xApp is rejected                            |
+| `foreign` | Self-signed xApp is rejected by CA validation                      |
+| `tamper`  | One flipped ciphertext byte causes AES-GCM authentication failure  |
+| `replay`  | First message accepted, duplicate nonce rejected                   |
+| `flood`   | First messages accepted, excess messages rejected by rate limit    |
 
 Audit entries are appended as JSON lines in `logs/audit.log`.
 

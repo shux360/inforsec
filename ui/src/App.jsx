@@ -75,7 +75,11 @@ export default function App() {
   );
   const [token, setToken] = useState("");
   const [envelope, setEnvelope] = useState(null);
-  const [serverUrl, setServerUrl] = useState("http://127.0.0.1:8080/demo/send");
+  const defaultServerUrl =
+    import.meta.env.VITE_DEMO_SERVER_URL ?? "http://127.0.0.1:8080/demo/send";
+  const defaultDemoApiKey =
+    import.meta.env.VITE_DEMO_API_KEY ?? "inforsec-demo-key";
+  const [serverUrl, setServerUrl] = useState(defaultServerUrl);
   const [lastResponse, setLastResponse] = useState(null);
 
   const refreshToken = async () => {
@@ -116,7 +120,7 @@ export default function App() {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-demo-api-key": "inforsec-demo-key",
+          "x-demo-api-key": defaultDemoApiKey,
         },
         body: JSON.stringify(envelope.env),
       });
