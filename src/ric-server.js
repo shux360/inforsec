@@ -8,9 +8,9 @@ import { authenticator as totpAuthenticator } from 'otplib';
 import { rootDir, runtimeConfig } from './config.js';
 import { AuditLog } from './lib/audit-log.js';
 import {
-    fingerprintFromRaw,
-    loadPins,
-    verifyCertificateIssuedByCa
+  fingerprintFromRaw,
+  loadPins,
+  verifyCertificateIssuedByCa
 } from './lib/certs.js';
 import { toBase64Url } from './lib/encoding.js';
 import { buildEnvelope, openEnvelope } from './lib/envelope.js';
@@ -139,11 +139,17 @@ export async function startRicServer(overrides = {}) {
         if (req.url === '/demo/send') {
           const senderId = message.senderId ?? 'xapp-legitimate';
           const payload = message.payload ?? message;
+          const profile = String(message.profile ?? 'xapp');
 
-          // load client certs and signing key from paths
-          const clientCert = readFileSync(config.paths.xappCert, 'utf8');
-          const clientKey = readFileSync(config.paths.xappKey, 'utf8');
-          const signingKey = readFileSync(config.paths.xappSigningKey, 'utf8');
+          // choose certificate/key/signing key paths based on requested profile (demo convenience)
+          const certPathName = `${profile}Cert`;
+          const keyPathName = `${profile}Key`;
+          const signingKeyPathName = `${profile}SigningKey`;
+
+          const clientCert = readFileSync(config.paths[certPathName] ?? config.paths.xappCert, 'utf8');
+          const clientKey = readFileSync(config.paths[keyPathName] ?? config.paths.xappKey, 'utf8');
+          // some demo profiles (e.g. foreign) reuse the xapp signing key; fall back when not present
+          const signingKey = readFileSync(config.paths[signingKeyPathName] ?? config.paths.xappSigningKey, 'utf8');
 
           // create TLS client to RIC server using mTLS
           const tlsOptions = {

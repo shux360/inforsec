@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
 import tls from 'node:tls';
+import { pathToFileURL } from 'node:url';
 import { authenticator } from 'otplib';
 import { runtimeConfig } from './config.js';
+import { verifyCertificateIssuedByCa } from './lib/certs.js';
+import { fromBase64Url, toBase64Url } from './lib/encoding.js';
 import { buildEnvelope } from './lib/envelope.js';
 import { createJsonLineParser, writeJsonLine } from './lib/framing.js';
-import { fromBase64Url, toBase64Url } from './lib/encoding.js';
-import { verifyCertificateIssuedByCa } from './lib/certs.js';
 
 const PAYLOAD_KEY_LABEL = 'oran-cti-payload-key-v1';
 const HEADER_MAC_KEY_LABEL = 'oran-cti-header-mac-key-v1';
@@ -44,6 +44,18 @@ export async function runXapp(options = {}) {
 
   const payloadPath = options.payloadPath ?? process.env.STIX_FILE ?? config.paths.samplePayload;
   const payload = JSON.parse(readFileSync(payloadPath, 'utf8'));
+  const validTotpPayload = {
+    ...payload,
+    twoFactor: {
+      token: authenticator.generate('JBSWY3DPEHPK3PXP')
+    }
+  };
+  const invalidTotpPayload = {
+    ...payload,
+    twoFactor: {
+      token: '000000'
+    }
+  };
   const cert = readFileSync(config.paths[profile.certPath]);
   const key = readFileSync(config.paths[profile.keyPath]);
   const signingKey = readFileSync(config.paths[profile.signingKeyPath]);
@@ -101,54 +113,32 @@ export async function runXapp(options = {}) {
       const payloadKey = socket.exportKeyingMaterial(32, PAYLOAD_KEY_LABEL, Buffer.alloc(0));
       const headerMacKey = socket.exportKeyingMaterial(32, HEADER_MAC_KEY_LABEL, Buffer.alloc(0));
 
-      const envelope = buildEnvelope({
-        payload,
-        senderId: profile.senderId,
-        privateKeyPem: signingKey,
-        payloadKey,
-        headerMacKey
-      });
+      const buildSignedEnvelope = (nextPayload) =>
+        buildEnvelope({
+          payload: nextPayload,
+          senderId: profile.senderId,
+          privateKeyPem: signingKey,
+          payloadKey,
+          headerMacKey
+        });
+
+      const validEnvelope = buildSignedEnvelope(validTotpPayload);
+      const invalidEnvelope = buildSignedEnvelope(invalidTotpPayload);
 
       if (mode === 'totp') {
-        const totpPayload = {
-          ...payload,
-          twoFactor: { token: authenticator.generate('JBSWY3DPEHPK3PXP') }
-        };
         console.log('[xApp] sending envelope with valid TOTP token');
-        writeJsonLine(
-          socket,
-          buildEnvelope({
-            payload: totpPayload,
-            senderId: profile.senderId,
-            privateKeyPem: signingKey,
-            payloadKey,
-            headerMacKey
-          })
-        );
+        writeJsonLine(socket, validEnvelope);
         return;
       }
 
       if (mode === 'totp-invalid') {
-        const totpPayload = {
-          ...payload,
-          twoFactor: { token: '000000' }
-        };
         console.log('[xApp] sending envelope with invalid TOTP token');
-        writeJsonLine(
-          socket,
-          buildEnvelope({
-            payload: totpPayload,
-            senderId: profile.senderId,
-            privateKeyPem: signingKey,
-            payloadKey,
-            headerMacKey
-          })
-        );
+        writeJsonLine(socket, invalidEnvelope);
         return;
       }
 
       if (mode === 'tamper') {
-        const tampered = { ...envelope };
+        const tampered = { ...validEnvelope };
         const ciphertext = fromBase64Url(tampered.ciphertext);
         ciphertext[0] ^= 0xff;
         tampered.ciphertext = toBase64Url(ciphertext);
@@ -159,8 +149,8 @@ export async function runXapp(options = {}) {
 
       if (mode === 'replay') {
         console.log('[xApp] sending same valid envelope twice to trigger nonce replay detection');
-        writeJsonLine(socket, envelope);
-        setTimeout(() => writeJsonLine(socket, envelope), 250);
+        writeJsonLine(socket, validEnvelope);
+        setTimeout(() => writeJsonLine(socket, validEnvelope), 250);
         return;
       }
 
@@ -169,25 +159,16 @@ export async function runXapp(options = {}) {
         console.log(`[xApp] sending ${count} signed telemetry messages to exercise rate limiting`);
         for (let index = 0; index < count; index += 1) {
           const floodPayload = {
-            ...payload,
+            ...validTotpPayload,
             id: `${payload.id}-flood-${index}`,
             objects: payload.objects
           };
-          writeJsonLine(
-            socket,
-            buildEnvelope({
-              payload: floodPayload,
-              senderId: profile.senderId,
-              privateKeyPem: signingKey,
-              payloadKey,
-              headerMacKey
-            })
-          );
+          writeJsonLine(socket, buildSignedEnvelope(floodPayload));
         }
         return;
       }
 
-      writeJsonLine(socket, envelope);
+      writeJsonLine(socket, validEnvelope);
     });
 
     socket.on(
