@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import tls from 'node:tls';
+import { authenticator } from 'otplib';
 import { runtimeConfig } from './config.js';
 import { buildEnvelope } from './lib/envelope.js';
 import { createJsonLineParser, writeJsonLine } from './lib/framing.js';
@@ -107,6 +108,44 @@ export async function runXapp(options = {}) {
         payloadKey,
         headerMacKey
       });
+
+      if (mode === 'totp') {
+        const totpPayload = {
+          ...payload,
+          twoFactor: { token: authenticator.generate('JBSWY3DPEHPK3PXP') }
+        };
+        console.log('[xApp] sending envelope with valid TOTP token');
+        writeJsonLine(
+          socket,
+          buildEnvelope({
+            payload: totpPayload,
+            senderId: profile.senderId,
+            privateKeyPem: signingKey,
+            payloadKey,
+            headerMacKey
+          })
+        );
+        return;
+      }
+
+      if (mode === 'totp-invalid') {
+        const totpPayload = {
+          ...payload,
+          twoFactor: { token: '000000' }
+        };
+        console.log('[xApp] sending envelope with invalid TOTP token');
+        writeJsonLine(
+          socket,
+          buildEnvelope({
+            payload: totpPayload,
+            senderId: profile.senderId,
+            privateKeyPem: signingKey,
+            payloadKey,
+            headerMacKey
+          })
+        );
+        return;
+      }
 
       if (mode === 'tamper') {
         const tampered = { ...envelope };

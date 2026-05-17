@@ -206,7 +206,8 @@ writeFileSync(
       xapps: {
         'xapp-legitimate': {
           tlsFingerprint: fingerprint(join(certsDir, 'xapp.cert.pem')),
-          signingPublicKey: 'certs/xapp-signing.public.pem'
+          signingPublicKey: 'certs/xapp-signing.public.pem',
+          totpSecret: 'JBSWY3DPEHPK3PXP'
         }
       }
     },

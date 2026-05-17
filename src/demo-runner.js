@@ -47,6 +47,18 @@ const scenarios = {
     client: {
       count: 8
     }
+  },
+  totp: {
+    title: 'Multi-factor authentication (TOTP) valid token',
+    profile: 'xapp',
+    mode: 'totp',
+    expected: 'accepted'
+  },
+  'totp-invalid': {
+    title: 'Multi-factor authentication (TOTP) invalid token rejection',
+    profile: 'xapp',
+    mode: 'totp-invalid',
+    expected: 'rejected'
   }
 };
 
@@ -104,7 +116,7 @@ function summarizeScenario(name, responses) {
 
 async function main() {
   const requested = process.argv[2] ?? 'all';
-  const names = requested === 'all' ? ['legit', 'rogue', 'foreign', 'tamper', 'replay', 'flood'] : [requested];
+  const names = requested === 'all' ? ['legit', 'rogue', 'foreign', 'tamper', 'replay', 'flood', 'totp', 'totp-invalid'] : [requested];
 
   for (const name of names) {
     await runScenario(name);
