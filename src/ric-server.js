@@ -8,13 +8,13 @@ import { AuditLog } from './lib/audit-log.js';
 import {
   fingerprintFromRaw,
   loadPins,
-  loadRevokedFingerprints,
   verifyCertificateIssuedByCa
 } from './lib/certs.js';
 import { createJsonLineParser, writeJsonLine } from './lib/framing.js';
 import { openEnvelope } from './lib/envelope.js';
 import { ReplayCache } from './lib/replay-cache.js';
 import { RateLimiter } from './lib/rate-limiter.js';
+import { RevocationList } from './lib/revocation.js';
 
 const PAYLOAD_KEY_LABEL = 'oran-cti-payload-key-v1';
 const HEADER_MAC_KEY_LABEL = 'oran-cti-header-mac-key-v1';
@@ -26,7 +26,7 @@ export async function startRicServer(overrides = {}) {
   const pins = loadPins(config.paths.pins);
   const pinnedFingerprints = new Set(Object.values(pins.xapps).map((pin) => pin.tlsFingerprint));
   const signingPublicKeys = loadSigningPublicKeys(pins);
-  const revokedFingerprints = loadRevokedFingerprints(config.paths.revoked);
+  const revocationList = new RevocationList(config.paths.revoked, { pollMs: 5000 });
   const replayCache = new ReplayCache({ ttlMs: config.maxSkewSeconds * 1000 });
   const rateLimiter = new RateLimiter({ limit: config.rateLimitPerMinute });
 
@@ -48,7 +48,7 @@ export async function startRicServer(overrides = {}) {
         pins,
         pinnedFingerprints,
         signingPublicKeys,
-        revokedFingerprints,
+        revocationList,
         replayCache,
         rateLimiter,
         config
@@ -96,6 +96,12 @@ export async function startRicServer(overrides = {}) {
           else resolve();
         };
 
+        // stop revocation watcher before closing server
+        try {
+          revocationList?.close();
+        } catch (err) {
+          // ignore
+        }
         server.close((error) => finish(error));
         server.closeAllConnections?.();
         setTimeout(() => finish(), 250);
@@ -110,7 +116,7 @@ async function handleConnection({
   pins,
   pinnedFingerprints,
   signingPublicKeys,
-  revokedFingerprints,
+  revocationList,
   replayCache,
   rateLimiter,
   config
@@ -145,7 +151,7 @@ async function handleConnection({
     return;
   }
 
-  if (revokedFingerprints.has(fingerprint)) {
+  if (revocationList.has(fingerprint)) {
     await rejectConnection(socket, audit, {
       stage: 'certificate-revocation',
       remote,
@@ -189,9 +195,10 @@ async function handleConnection({
         stage: 'availability',
         senderId: message.senderId ?? 'unknown',
         fingerprint,
-        reason: 'rate limit exceeded'
+        reason: 'rate limit exceeded',
+        retryAfter: rate.retryAfter
       });
-      writeJsonLine(socket, { status: 'rejected', reason: 'rate limit exceeded' });
+      writeJsonLine(socket, { status: 'rejected', reason: 'rate limit exceeded', retryAfter: rate.retryAfter });
       return;
     }
 
